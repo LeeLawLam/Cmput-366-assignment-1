@@ -1,6 +1,7 @@
 import time
 from search.algorithms import State
 from search.map import Map
+import heapq
 import getopt
 import sys
 
@@ -24,7 +25,95 @@ def verify_path(start, goal, path, map):
         if not contains_next:
             return False
     return True
-        
+
+def dijkstra(gridded_map, start, goal):
+    open_heap = []
+    best_g = {}
+
+    start.set_g(0.0)
+    start.set_parent(None)
+    start.set_cost(0.0)  # priority = g
+
+    best_g[start.state_hash()] = 0.0
+    heapq.heappush(open_heap, start)
+
+    nodes_expanded = 0
+
+    while open_heap:
+        current = heapq.heappop(open_heap)
+        nodes_expanded += 1
+
+        cur_hash = current.state_hash()
+        if current.get_g() != best_g.get(cur_hash, float("inf")):
+            continue
+
+        if current == goal:
+            path = []
+            cur = current
+            while cur is not None:
+                path.append(cur)
+                cur = cur.get_parent()
+            path.reverse()
+            return path, current.get_g(), nodes_expanded
+
+        for child in gridded_map.successors(current):
+            ch = child.state_hash()
+            new_g = child.get_g()  # successors already added step cost
+
+            if new_g < best_g.get(ch, float("inf")):
+                best_g[ch] = new_g
+                child.set_parent(current)
+                child.set_cost(new_g)
+                heapq.heappush(open_heap, child)
+
+    return None, -1, nodes_expanded
+
+def astar(gridded_map, start, goal):
+    open_heap = []
+    best_g = {}
+
+    def octile(s):
+        dx = abs(s.get_x() - goal.get_x())
+        dy = abs(s.get_y() - goal.get_y())
+        return 1.5 * min(dx, dy) + abs(dx - dy)
+
+    start.set_g(0.0)
+    start.set_parent(None)
+    start.set_cost(octile(start))
+
+    best_g[start.state_hash()] = 0.0
+    heapq.heappush(open_heap, start)
+
+    nodes_expanded = 0
+
+    while open_heap:
+        current = heapq.heappop(open_heap)
+        nodes_expanded += 1
+
+        cur_hash = current.state_hash()
+        if current.get_g() != best_g.get(cur_hash, float("inf")):
+            continue
+
+        if current == goal:
+            path = []
+            cur = current
+            while cur is not None:
+                path.append(cur)
+                cur = cur.get_parent()
+            path.reverse()
+            return path, current.get_g(), nodes_expanded
+
+        for child in gridded_map.successors(current):
+            ch = child.state_hash()
+            new_g = child.get_g()
+
+            if new_g < best_g.get(ch, float("inf")):
+                best_g[ch] = new_g
+                child.set_parent(current)
+                child.set_cost(new_g + octile(child))
+                heapq.heappush(open_heap, child)
+
+    return None, -1, nodes_expanded
 
 def main():
     """
@@ -61,7 +150,7 @@ def main():
         goal = goal_states[i]
     
         time_start = time.time()
-        path, cost, expanded_diskstra = None, None, None # Replace the None, None, None with a call to Dijkstra's algorithm
+        path, cost, expanded_diskstra = dijkstra(gridded_map, start, goal) # Replace the None, None, None with a call to Dijkstra's algorithm (done)
         time_end = time.time()
         nodes_expanded_dijkstra.append(expanded_diskstra)
         time_dijkstra.append(time_end - time_start)
@@ -82,7 +171,7 @@ def main():
         goal = goal_states[i]
     
         time_start = time.time()
-        path, cost, expanded_astar = None, None, None # Replace the None, None, None with a call to A*
+        path, cost, expanded_astar = astar(gridded_map, start, goal) # Replace the None, None, None with a call to A* (done)
         time_end = time.time()
 
         nodes_expanded_astar.append(expanded_astar)
